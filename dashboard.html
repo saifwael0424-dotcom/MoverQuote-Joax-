@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Joax Dashboard</title>
+<title>MoverQuote Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 .status-filter.active{background:#534AB7;color:#fff;border-color:#534AB7}
@@ -212,7 +212,7 @@ tr:hover td{background:#fafafa}
 
 <!-- MOBILE TOPBAR -->
 <div class="mobile-topbar" id="mobile-topbar">
-  <div class="mobile-logo">joax<span>.</span>online</div>
+  <div class="mobile-logo">Mover<span>Quote</span></div>
   <button class="hamburger" onclick="toggleSidebar()">☰</button>
 </div>
 <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
@@ -220,7 +220,7 @@ tr:hover td{background:#fafafa}
 <!-- AUTH PAGE -->
 <div class="auth-wrap" id="auth-page">
   <div class="auth-card">
-    <div class="auth-logo">joax<span>.</span>online</div>
+    <div class="auth-logo">Mover<span>Quote</span></div>
     <div class="form-group">
       <label>Email</label>
       <input type="email" id="login-email" placeholder="you@company.com" onkeydown="if(event.key==='Enter')login()">
@@ -237,7 +237,7 @@ tr:hover td{background:#fafafa}
 <!-- DASHBOARD -->
 <div class="app hidden" id="dashboard">
   <div class="sidebar" id="sidebar">
-    <div class="sidebar-logo">joax<span>.</span>online</div>
+    <div class="sidebar-logo">Mover<span>Quote</span></div>
     <button class="nav-item active" onclick="showPage('pricing',this)">⚙️ Pricing editor</button>
     <button class="nav-item" onclick="showPage('activity',this)">📊 Activity</button>
     <button class="nav-item" onclick="showPage('leads',this)">📋 Leads</button>
@@ -1555,7 +1555,7 @@ function editClient(id) {
 async function loadReferrals() {
   if (!currentClient) return;
   const slug = currentClient.slug || '';
-  const link = `https://joax.online/ref/${slug}.html`;
+  const link = `/ref/${slug}.html`;
   const linkEl = document.getElementById('ref-link');
   if (linkEl) linkEl.textContent = link;
 
@@ -1654,7 +1654,7 @@ function closeSidebar() { document.getElementById('sidebar').classList.remove('o
 function loadEmbed() {
   if (!currentClient) return;
   const slug = currentClient.slug || '';
-  const formUrl = `https://joax.online/forms/${slug}.html`;
+  const formUrl = `/forms/${slug}.html`;
   const iframe = `<iframe src="${formUrl}" width="100%" height="750" frameborder="0" style="border:none;border-radius:12px"></iframe>`;
   document.getElementById('embed-form-url').textContent = formUrl;
   document.getElementById('embed-iframe-code').textContent = iframe;
