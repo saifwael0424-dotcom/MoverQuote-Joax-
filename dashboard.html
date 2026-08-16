@@ -239,6 +239,7 @@ tr:hover td{background:#fafafa}
   <div class="sidebar" id="sidebar">
     <div class="sidebar-logo">Mover<span>Quote</span></div>
     <button class="nav-item active" onclick="showPage('pricing',this)">⚙️ Pricing editor</button>
+    <button class="nav-item" onclick="showPage('approvals',this)">✅ Approvals <span id="approvals-badge" style="display:none;background:#E24B4A;color:#fff;border-radius:10px;font-size:11px;padding:1px 6px;margin-left:4px"></span></button>
     <button class="nav-item" onclick="showPage('activity',this)">📊 Activity</button>
     <button class="nav-item" onclick="showPage('leads',this)">📋 Leads</button>
     <button class="nav-item" onclick="showPage('referrals',this)">🔗 Referrals</button>
@@ -266,17 +267,32 @@ tr:hover td{background:#fafafa}
         <select id="client-select" onchange="loadClientConfig()"></select>
       </div>
 
+      <div class="card" style="margin-bottom:16px" id="mode-toggle-card">
+        <div class="card-title">Pricing structure</div>
+        <div class="card-sub">Set once per client based on their account type. Long-distance clients only see long-distance options everywhere in this dashboard.</div>
+        <div class="tabs" style="display:inline-flex">
+          <button class="tab" id="mode-btn-hourly" onclick="setPricingMode('hourly')">Hourly</button>
+          <button class="tab" id="mode-btn-long_distance" onclick="setPricingMode('long_distance')">Long distance (cu ft x miles)</button>
+        </div>
+        <div style="margin-top:12px">
+          <label style="font-size:13px;color:#666;display:block;margin-bottom:4px">Notification email (where new-quote alerts get sent)</label>
+          <input type="email" id="f_owner_email" placeholder="devon@example.com" style="width:100%;max-width:320px;padding:7px 10px;font-size:13px;border:1px solid #ddd;border-radius:6px">
+        </div>
+      </div>
+
       <div class="tabs">
-        <button class="tab active" onclick="switchTab('rates',this)">Hourly rates</button>
-        <button class="tab" onclick="switchTab('hours',this)">Base hours</button>
+        <button class="tab active mode-hourly" onclick="switchTab('rates',this)">Hourly rates</button>
+        <button class="tab mode-hourly" onclick="switchTab('hours',this)">Base hours</button>
+        <button class="tab mode-long_distance" onclick="switchTab('inventory',this)">Inventory</button>
+        <button class="tab mode-long_distance" onclick="switchTab('distance_tiers',this)">Distance pricing</button>
         <button class="tab" onclick="switchTab('protection',this)">Protection plan</button>
-        <button class="tab" onclick="switchTab('stairs',this)">Stairs</button>
+        <button class="tab mode-hourly" onclick="switchTab('stairs',this)">Stairs</button>
         <button class="tab" onclick="switchTab('fees',this)">Fees</button>
-        <button class="tab" onclick="switchTab('items',this)">Specialty items</button>
+        <button class="tab mode-hourly" onclick="switchTab('items',this)">Specialty items</button>
         <button class="tab" onclick="switchTab('discounts',this)">Discounts</button>
         <button class="tab" onclick="switchTab('custom_fees',this)">Custom fees</button>
-        <button class="tab" onclick="switchTab('mover_rules',this)">Mover rules</button>
-        <button class="tab" onclick="switchTab('time_pricing',this)">Time pricing</button>
+        <button class="tab mode-hourly" onclick="switchTab('mover_rules',this)">Mover rules</button>
+        <button class="tab mode-hourly" onclick="switchTab('time_pricing',this)">Time pricing</button>
         <button class="tab" onclick="switchTab('quote_message',this)">Quote message</button>
       </div>
 
@@ -397,6 +413,26 @@ tr:hover td{background:#fafafa}
             <div class="field-row"><div class="field-label">Low end</div><div class="field-input"><input type="number" id="f_range_low" step="0.01"><span>× total</span></div></div>
             <div class="field-row"><div class="field-label">High end</div><div class="field-input"><input type="number" id="f_range_high" step="0.01"><span>× total</span></div></div>
           </div>
+        </div>
+      </div>
+
+      <!-- INVENTORY (long distance mode) -->
+      <div id="tab-inventory" style="display:none">
+        <div class="card">
+          <div class="card-title">Moving inventory</div>
+          <div class="card-sub">Items customers select or that get detected from photos. Cubic ft drives long-distance pricing.</div>
+          <div id="inventory-list"></div>
+          <button class="add-btn" onclick="addInventoryItem()">+ Add item</button>
+        </div>
+      </div>
+
+      <!-- DISTANCE PRICING (long distance mode) -->
+      <div id="tab-distance_tiers" style="display:none">
+        <div class="card">
+          <div class="card-title">Distance pricing tiers</div>
+          <div class="card-sub">Rate per cubic ft, by distance band (miles).</div>
+          <div id="tier-list"></div>
+          <button class="add-btn" onclick="addTier()">+ Add tier</button>
         </div>
       </div>
 
@@ -620,6 +656,14 @@ tr:hover td{background:#fafafa}
       </div>
     </div>
 
+    <!-- APPROVALS PAGE (long distance) -->
+    <div class="page" id="page-approvals">
+      <div class="page-title">Pending approvals</div>
+      <div class="page-sub">Review each quote before it goes to the customer</div>
+      <div id="approvals-list"></div>
+      <div id="approvals-empty" style="display:none;color:#888;padding:30px;text-align:center">No pending quotes right now.</div>
+    </div>
+
     <!-- LEADS PAGE -->
     <div class="page" id="page-leads">
       <div class="page-title">Leads</div>
@@ -746,6 +790,7 @@ tr:hover td{background:#fafafa}
 const SUPABASE_URL = 'https://izppuvmdowgctlligvfi.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml6cHB1dm1kb3dnY3RsbGlndmZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2MjI4NzIsImV4cCI6MjA5NDE5ODg3Mn0.0_itRpM7I8vW7gjN1bhcZf0FlB_P-pc9KQ-K4oEMEqE';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+const N8N_API_URL = 'https://n8n.srv1058135.hstgr.cloud/webhook';
 
 let currentUser = null;
 let currentClient = null;
@@ -754,7 +799,26 @@ let allClients = [];
 let _activityDays = 7;
 let _allActivityQuotes = [];
 
-const tabs = ['rates','hours','protection','stairs','fees','items','discounts','custom_fees','mover_rules','time_pricing','quote_message'];
+const tabs = ['rates','hours','inventory','distance_tiers','protection','stairs','fees','items','discounts','custom_fees','mover_rules','time_pricing','quote_message'];
+let currentPricingMode = 'hourly';
+let inventoryItems = [];
+let distanceTiers = [];
+
+function setPricingMode(mode) {
+  currentPricingMode = mode;
+  document.getElementById('mode-btn-hourly').classList.toggle('active', mode === 'hourly');
+  document.getElementById('mode-btn-long_distance').classList.toggle('active', mode === 'long_distance');
+  document.querySelectorAll('.mode-hourly').forEach(el => el.style.display = mode === 'hourly' ? '' : 'none');
+  document.querySelectorAll('.mode-long_distance').forEach(el => el.style.display = mode === 'long_distance' ? '' : 'none');
+  // If the currently active tab just got hidden, switch to a visible one
+  const activeBtn = document.querySelector('.tab.active');
+  if (activeBtn && activeBtn.style.display === 'none') {
+    const firstVisible = document.querySelector('.tab:not(.active)[style=""], .tab:not([style])');
+    const fallback = mode === 'hourly' ? 'rates' : 'inventory';
+    const fallbackBtn = [...document.querySelectorAll('.tab')].find(b => b.getAttribute('onclick')?.includes(`'${fallback}'`));
+    if (fallbackBtn) switchTab(fallback, fallbackBtn);
+  }
+}
 
 async function init() {
   const { data: { session } } = await sb.auth.getSession();
@@ -809,8 +873,10 @@ async function setupDashboard() {
     await loadAllClients();
   } else {
     currentClient = clientRow;
+    document.getElementById('mode-toggle-card').style.display = 'none'; // clients don't switch their own pricing mode
     await loadConfig();
     await loadActivity();
+    await loadApprovals();
   }
 }
 
@@ -873,6 +939,13 @@ async function loadConfig() {
   setVal('f_range_high', c.range_high_pct||1.18);
   document.getElementById('f_packing_mode').value = c.packing_mode || 'per_box';
 
+  // Pricing mode + long-distance settings
+  setPricingMode(c.pricing_mode || 'hourly');
+  document.getElementById('f_owner_email').value = c.owner_email || '';
+  distanceTiers = c.distance_tiers || [];
+  renderTierList();
+  await loadInventoryItems();
+
   // Specialty + discounts
   renderSpecialtyItems(c.specialty_items || []);
   renderDiscountCodes(c.discount_codes || {});
@@ -899,6 +972,153 @@ async function loadConfig() {
 function setVal(id, val) { const el = document.getElementById(id); if (el) el.value = val; }
 function getVal(id) { const el = document.getElementById(id); return el ? parseFloat(el.value) || 0 : 0; }
 function getStrVal(id) { const el = document.getElementById(id); return el ? el.value.trim() : ''; }
+
+// ---- APPROVALS ----
+async function loadApprovals() {
+  if (!currentClient) return;
+  const { data } = await sb.from('quote_approvals')
+    .select('*')
+    .eq('client_id', currentClient.id)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false });
+
+  const list = document.getElementById('approvals-list');
+  const empty = document.getElementById('approvals-empty');
+  const badge = document.getElementById('approvals-badge');
+  list.innerHTML = '';
+
+  if (!data || !data.length) {
+    empty.style.display = 'block';
+    badge.style.display = 'none';
+    return;
+  }
+  empty.style.display = 'none';
+  badge.style.display = 'inline-block';
+  badge.textContent = data.length;
+
+  data.forEach(q => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.style.marginBottom = '12px';
+    const items = (q.inventory_json || []).filter(i => i.qty > 0);
+    const itemsHtml = items.length
+      ? items.map(i => `${i.qty}x (${i.cubic_ft} cu ft each)`).join(', ')
+      : '—';
+    card.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:10px">
+        <div>
+          <div class="card-title">${q.customer_name || 'Unknown'} <span style="font-weight:400;color:#888;font-size:13px">${q.customer_email || ''}</span></div>
+          <div class="card-sub">${q.pickup_address || '—'} → ${q.dest_address || '—'}</div>
+          <div style="margin-top:8px;font-size:14px">
+            <strong>$${q.quote_low} - $${q.quote_high}</strong>
+            &nbsp;·&nbsp; ${Math.round(q.distance_miles||0)} mi
+            &nbsp;·&nbsp; ${q.total_cubic_ft||0} cu ft
+          </div>
+          <div style="margin-top:6px;font-size:12px;color:#888">${itemsHtml}</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="add-btn" onclick="decideApproval('${q.id}','approve',this)">✓ Approve</button>
+          <button class="add-btn" style="color:#E24B4A;border-color:#E24B4A" onclick="decideApproval('${q.id}','reject',this)">✕ Reject</button>
+        </div>
+      </div>`;
+    list.appendChild(card);
+  });
+}
+
+async function decideApproval(approvalId, action, btn) {
+  btn.disabled = true;
+  btn.textContent = 'Working…';
+  try {
+    await fetch(`${N8N_API_URL}/ld-approve`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ approval_id: approvalId, action })
+    });
+  } catch (e) {}
+  loadApprovals();
+}
+
+// ---- INVENTORY (long distance mode) ----
+async function loadInventoryItems() {
+  if (!currentClient) return;
+  const { data } = await sb.from('inventory_items').select('*').eq('client_id', currentClient.id).order('room_category');
+  inventoryItems = data || [];
+  renderInventoryList();
+}
+
+function renderInventoryList() {
+  const wrap = document.getElementById('inventory-list');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  inventoryItems.forEach((item, idx) => {
+    const row = document.createElement('div');
+    row.className = 'custom-item';
+    row.innerHTML = `
+      <input type="text" value="${item.room_category||''}" placeholder="Room" oninput="inventoryItems[${idx}].room_category=this.value" style="max-width:120px">
+      <input type="text" value="${item.item_name||''}" placeholder="Item name" oninput="inventoryItems[${idx}].item_name=this.value">
+      <input type="number" value="${item.cubic_ft||0}" placeholder="Cu ft" step="0.5" oninput="inventoryItems[${idx}].cubic_ft=parseFloat(this.value)||0" style="max-width:80px">
+      <button class="del-btn" onclick="saveInventoryItem(${idx})" title="Save">💾</button>
+      <button class="del-btn" onclick="deleteInventoryItem(${idx})">✕</button>`;
+    wrap.appendChild(row);
+  });
+}
+
+function addInventoryItem() {
+  inventoryItems.push({ client_id: currentClient.id, room_category: '', item_name: '', cubic_ft: 0 });
+  renderInventoryList();
+}
+
+async function saveInventoryItem(idx) {
+  const item = inventoryItems[idx];
+  if (item.id) {
+    await sb.from('inventory_items').update({
+      room_category: item.room_category, item_name: item.item_name, cubic_ft: item.cubic_ft
+    }).eq('id', item.id);
+  } else {
+    const { data } = await sb.from('inventory_items').insert({
+      client_id: currentClient.id, room_category: item.room_category,
+      item_name: item.item_name, cubic_ft: item.cubic_ft
+    }).select().single();
+    if (data) inventoryItems[idx] = data;
+  }
+  document.getElementById('save-status').textContent = '✓ Item saved';
+}
+
+async function deleteInventoryItem(idx) {
+  const item = inventoryItems[idx];
+  if (item.id) await sb.from('inventory_items').delete().eq('id', item.id);
+  inventoryItems.splice(idx, 1);
+  renderInventoryList();
+}
+
+// ---- DISTANCE PRICING TIERS (long distance mode) ----
+function renderTierList() {
+  const wrap = document.getElementById('tier-list');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  distanceTiers.forEach((tier, idx) => {
+    const row = document.createElement('div');
+    row.className = 'custom-item';
+    row.innerHTML = `
+      <input type="number" value="${tier.min_miles||0}" placeholder="Min mi" oninput="distanceTiers[${idx}].min_miles=parseInt(this.value)||0" style="max-width:80px">
+      <span style="color:#888;font-size:13px">to</span>
+      <input type="number" value="${tier.max_miles||0}" placeholder="Max mi" oninput="distanceTiers[${idx}].max_miles=parseInt(this.value)||0" style="max-width:80px">
+      <span style="color:#888;font-size:13px">miles →</span>
+      <span>$</span><input type="number" value="${tier.rate_per_cuft||0}" placeholder="Rate" step="0.25" oninput="distanceTiers[${idx}].rate_per_cuft=parseFloat(this.value)||0" style="max-width:80px">
+      <span style="color:#888;font-size:13px">/cu ft</span>
+      <button class="del-btn" onclick="deleteTier(${idx})">✕</button>`;
+    wrap.appendChild(row);
+  });
+}
+
+function addTier() {
+  distanceTiers.push({ min_miles: 0, max_miles: 250, rate_per_cuft: 4.5 });
+  renderTierList();
+}
+
+function deleteTier(idx) {
+  distanceTiers.splice(idx, 1);
+  renderTierList();
+}
 
 // ---- SPECIALTY ITEMS ----
 function renderSpecialtyItems(items) {
@@ -1100,6 +1320,9 @@ async function saveConfig() {
     packing_price_per_box: getVal('f_packing_box'),
     packing_flat_fee: getVal('f_packing_flat'),
     packing_mode: document.getElementById('f_packing_mode').value,
+    pricing_mode: currentPricingMode,
+    owner_email: document.getElementById('f_owner_email').value,
+    distance_tiers: distanceTiers,
     range_low_pct: getVal('f_range_low'),
     range_high_pct: getVal('f_range_high'),
     specialty_items: getSpecialtyItems(),
@@ -1642,6 +1865,7 @@ function showPage(id, el) {
   if (id === 'activity') loadActivity();
   if (id === 'clients') loadClientsTable();
   if (id === 'leads') loadLeads();
+  if (id === 'approvals') loadApprovals();
   if (id === 'referrals') loadReferrals();
   if (id === 'embed') loadEmbed();
   closeSidebar();
