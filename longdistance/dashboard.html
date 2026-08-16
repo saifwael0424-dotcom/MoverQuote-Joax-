@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — Long Distance Quotes</title>
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<style>
+:root{--brand:#0D2B6E;--brand-light:#E6EBF8;--brand-mid:#1A3F9F;--text:#0B1220;--muted:#6B7280;--border:#DDE3EF;--bg:#F0F3FA;--card:#fff;--ok:#16A34A;--err:#DC2626}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+/* LOGIN */
+#login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.login-card{background:#fff;border-radius:18px;padding:36px 32px;width:100%;max-width:380px;box-shadow:0 12px 40px rgba(13,43,110,.13)}
+.login-card h1{font-size:20px;margin-bottom:6px}
+.login-card p{font-size:13px;color:var(--muted);margin-bottom:22px}
+.login-card input{width:100%;padding:11px 13px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;margin-bottom:12px}
+.login-card input:focus{outline:none;border-color:var(--brand)}
+.login-card button{width:100%;padding:12px;background:var(--brand);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer}
+.login-card button:hover{background:var(--brand-mid)}
+.login-err{color:var(--err);font-size:13px;margin-top:10px;display:none}
+
+/* APP SHELL */
+#app{display:none}
+.topbar{background:#fff;border-bottom:1px solid var(--border);padding:14px 24px;display:flex;justify-content:space-between;align-items:center}
+.topbar h1{font-size:16px}
+.topbar button{background:none;border:1px solid var(--border);border-radius:8px;padding:7px 14px;font-size:13px;cursor:pointer;color:var(--muted)}
+.topbar button:hover{border-color:var(--brand);color:var(--brand)}
+.tabs-nav{display:flex;gap:4px;padding:14px 24px 0;background:#fff;border-bottom:1px solid var(--border)}
+.tab-btn{padding:10px 16px;border:none;background:none;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;position:relative}
+.tab-btn.active{color:var(--brand);border-bottom-color:var(--brand)}
+.badge{background:var(--err);color:#fff;border-radius:10px;font-size:10px;padding:1px 6px;margin-left:5px}
+
+.wrap{max-width:820px;margin:0 auto;padding:24px}
+.page{display:none}
+.page.active{display:block}
+.card{background:#fff;border-radius:14px;padding:20px;margin-bottom:16px;border:1px solid var(--border)}
+.card-title{font-size:15px;font-weight:600;margin-bottom:4px}
+.card-sub{font-size:13px;color:var(--muted);margin-bottom:14px}
+
+.item-row{display:flex;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0f4}
+.item-row:last-child{border-bottom:none}
+.item-row input{padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px}
+.item-row .del{background:none;border:none;color:var(--err);cursor:pointer;font-size:14px;padding:4px}
+.add-btn{margin-top:10px;padding:8px 16px;background:var(--brand-light);color:var(--brand);border:1.5px solid var(--brand);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer}
+.add-btn:hover{background:var(--brand);color:#fff}
+.save-hint{font-size:11px;color:var(--ok);min-width:14px}
+
+.approval-card{display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:12px}
+.approval-info b{font-size:14px}
+.approval-sub{font-size:12px;color:var(--muted);margin-top:2px}
+.approval-price{font-size:15px;font-weight:700;color:var(--brand);margin-top:8px}
+.approval-items{font-size:12px;color:#888;margin-top:5px}
+.approval-actions{display:flex;gap:8px}
+.btn-approve{background:var(--ok);color:#fff;border:none;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer}
+.btn-reject{background:#fff;color:var(--err);border:1.5px solid var(--err);padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer}
+.empty-state{text-align:center;color:#999;padding:40px 0;font-size:13px}
+
+label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px;margin-top:10px}
+label:first-child{margin-top:0}
+.settings-input{width:100%;max-width:340px;padding:8px 11px;border:1.5px solid var(--border);border-radius:8px;font-size:13px}
+</style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div id="login-screen">
+  <div class="login-card">
+    <h1>Admin Login</h1>
+    <p>Long-distance quote management</p>
+    <input type="email" id="login-email" placeholder="Email">
+    <input type="password" id="login-password" placeholder="Password">
+    <button onclick="doLogin()">Log in</button>
+    <div class="login-err" id="login-err">Incorrect email or password.</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="topbar">
+    <h1 id="company-title">Admin Dashboard</h1>
+    <button onclick="doLogout()">Log out</button>
+  </div>
+
+  <div class="tabs-nav">
+    <button class="tab-btn active" onclick="showPage('approvals',this)">Approvals <span class="badge" id="approvals-badge" style="display:none">0</span></button>
+    <button class="tab-btn" onclick="showPage('inventory',this)">Inventory</button>
+    <button class="tab-btn" onclick="showPage('pricing',this)">Distance Pricing</button>
+    <button class="tab-btn" onclick="showPage('settings',this)">Settings</button>
+  </div>
+
+  <div class="wrap">
+
+    <!-- APPROVALS -->
+    <div class="page active" id="page-approvals">
+      <div id="approvals-list"></div>
+      <div class="empty-state" id="approvals-empty" style="display:none">No pending quotes right now.</div>
+    </div>
+
+    <!-- INVENTORY -->
+    <div class="page" id="page-inventory">
+      <div class="card">
+        <div class="card-title">Moving inventory</div>
+        <div class="card-sub">Items customers select, and what the AI photo estimator matches against. Cubic ft drives pricing.</div>
+        <div id="inventory-list"></div>
+        <button class="add-btn" onclick="addInventoryItem()">+ Add item</button>
+      </div>
+    </div>
+
+    <!-- PRICING -->
+    <div class="page" id="page-pricing">
+      <div class="card">
+        <div class="card-title">Distance pricing tiers</div>
+        <div class="card-sub">Rate per cubic ft, by distance band (miles).</div>
+        <div id="tier-list"></div>
+        <button class="add-btn" onclick="addTier()">+ Add tier</button>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="page" id="page-settings">
+      <div class="card">
+        <div class="card-title">Company settings</div>
+        <label>Company name (shown on the quote form)</label>
+        <input type="text" id="s-company" class="settings-input" onchange="saveSettings()">
+        <label>Notification email (where new-quote alerts get sent)</label>
+        <input type="email" id="s-email" class="settings-input" onchange="saveSettings()">
+        <div class="save-hint" id="settings-status" style="margin-top:8px"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://zuctjgnxdjgdzynhkagj.supabase.co'; // your project URL
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp1Y3RqZ254ZGpnZHp5bmhrYWdqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY4ODU1NDksImV4cCI6MjEwMjQ2MTU0OX0.wAG3b6Wp1KBqVWcx6AXDCwDGT9Hpj8O3xZv7Q9qBOX0';
+const N8N_API_URL = 'https://n8n.srv1058135.hstgr.cloud/webhook';
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+let inventoryItems = [];
+let distanceTiers = [];
+let settings = {};
+
+// ── AUTH ─────────────────────────────────────────────────────────
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  if (error) {
+    document.getElementById('login-err').style.display = 'block';
+    return;
+  }
+  await enterApp();
+}
+
+async function doLogout() {
+  await sb.auth.signOut();
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+}
+
+async function checkSession() {
+  const { data } = await sb.auth.getSession();
+  if (data.session) await enterApp();
+}
+
+async function enterApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  await loadSettings();
+  await loadInventory();
+  await loadTiers();
+  await loadApprovals();
+}
+
+// ── NAV ──────────────────────────────────────────────────────────
+function showPage(id, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  el.classList.add('active');
+  if (id === 'approvals') loadApprovals();
+}
+
+// ── SETTINGS ─────────────────────────────────────────────────────
+async function loadSettings() {
+  const { data } = await sb.from('settings').select('*').eq('id', 1).single();
+  settings = data || {};
+  document.getElementById('s-company').value = settings.company_name || '';
+  document.getElementById('s-email').value = settings.owner_email || '';
+  document.getElementById('company-title').textContent = settings.company_name || 'Admin Dashboard';
+}
+async function saveSettings() {
+  settings.company_name = document.getElementById('s-company').value;
+  settings.owner_email = document.getElementById('s-email').value;
+  await sb.from('settings').update({
+    company_name: settings.company_name, owner_email: settings.owner_email
+  }).eq('id', 1);
+  document.getElementById('company-title').textContent = settings.company_name || 'Admin Dashboard';
+  const el = document.getElementById('settings-status');
+  el.textContent = '✓ Saved'; setTimeout(() => el.textContent = '', 1500);
+}
+
+// ── INVENTORY ────────────────────────────────────────────────────
+async function loadInventory() {
+  const { data } = await sb.from('inventory_items').select('*').order('room_category');
+  inventoryItems = data || [];
+  renderInventory();
+}
+function renderInventory() {
+  const wrap = document.getElementById('inventory-list');
+  wrap.innerHTML = '';
+  inventoryItems.forEach((item, idx) => {
+    const row = document.createElement('div');
+    row.className = 'item-row';
+    row.innerHTML = `
+      <input value="${item.room_category||''}" placeholder="Room" style="flex:1"
+        oninput="inventoryItems[${idx}].room_category=this.value" onchange="saveItem(${idx})">
+      <input value="${item.item_name||''}" placeholder="Item name" style="flex:2"
+        oninput="inventoryItems[${idx}].item_name=this.value" onchange="saveItem(${idx})">
+      <input type="number" value="${item.cubic_ft||0}" placeholder="Cu ft" step="0.5" style="width:80px"
+        oninput="inventoryItems[${idx}].cubic_ft=parseFloat(this.value)||0" onchange="saveItem(${idx})">
+      <span class="save-hint" id="inv-status-${idx}"></span>
+      <button class="del" onclick="deleteItem(${idx})">✕</button>`;
+    wrap.appendChild(row);
+  });
+}
+function addInventoryItem() {
+  inventoryItems.push({ room_category: '', item_name: '', cubic_ft: 0 });
+  renderInventory();
+}
+async function saveItem(idx) {
+  const item = inventoryItems[idx];
+  if (!item.room_category || !item.item_name) return;
+  const statusEl = document.getElementById(`inv-status-${idx}`);
+  try {
+    if (item.id) {
+      await sb.from('inventory_items').update({
+        room_category: item.room_category, item_name: item.item_name, cubic_ft: item.cubic_ft
+      }).eq('id', item.id);
+    } else {
+      const { data } = await sb.from('inventory_items').insert({
+        room_category: item.room_category, item_name: item.item_name, cubic_ft: item.cubic_ft
+      }).select().single();
+      if (data) inventoryItems[idx] = data;
+    }
+    if (statusEl) { statusEl.textContent = '✓'; setTimeout(() => statusEl.textContent = '', 1500); }
+  } catch (e) { if (statusEl) statusEl.textContent = '⚠'; }
+}
+async function deleteItem(idx) {
+  const item = inventoryItems[idx];
+  if (item.id) await sb.from('inventory_items').delete().eq('id', item.id);
+  inventoryItems.splice(idx, 1);
+  renderInventory();
+}
+
+// ── DISTANCE TIERS ───────────────────────────────────────────────
+async function loadTiers() {
+  distanceTiers = settings.distance_tiers || [];
+  renderTiers();
+}
+function renderTiers() {
+  const wrap = document.getElementById('tier-list');
+  wrap.innerHTML = '';
+  distanceTiers.forEach((tier, idx) => {
+    const row = document.createElement('div');
+    row.className = 'item-row';
+    row.innerHTML = `
+      <input type="number" value="${tier.min_miles||0}" placeholder="Min mi" style="width:80px"
+        oninput="distanceTiers[${idx}].min_miles=parseInt(this.value)||0" onchange="saveTiers()">
+      <span style="font-size:12px;color:#888">to</span>
+      <input type="number" value="${tier.max_miles||0}" placeholder="Max mi" style="width:80px"
+        oninput="distanceTiers[${idx}].max_miles=parseInt(this.value)||0" onchange="saveTiers()">
+      <span style="font-size:12px;color:#888">miles →</span>
+      <span>$</span>
+      <input type="number" value="${tier.rate_per_cuft||0}" placeholder="Rate" step="0.25" style="width:80px"
+        oninput="distanceTiers[${idx}].rate_per_cuft=parseFloat(this.value)||0" onchange="saveTiers()">
+      <span style="font-size:12px;color:#888">/cu ft</span>
+      <button class="del" onclick="deleteTier(${idx})">✕</button>`;
+    wrap.appendChild(row);
+  });
+}
+function addTier() {
+  distanceTiers.push({ min_miles: 0, max_miles: 250, rate_per_cuft: 4.5 });
+  renderTiers();
+  saveTiers();
+}
+function deleteTier(idx) {
+  distanceTiers.splice(idx, 1);
+  renderTiers();
+  saveTiers();
+}
+async function saveTiers() {
+  await sb.from('settings').update({ distance_tiers: distanceTiers }).eq('id', 1);
+}
+
+// ── APPROVALS ────────────────────────────────────────────────────
+async function loadApprovals() {
+  const { data } = await sb.from('quote_approvals')
+    .select('*').eq('status', 'pending').order('created_at', { ascending: false });
+
+  const list = document.getElementById('approvals-list');
+  const empty = document.getElementById('approvals-empty');
+  const badge = document.getElementById('approvals-badge');
+  list.innerHTML = '';
+
+  if (!data || !data.length) {
+    empty.style.display = 'block';
+    badge.style.display = 'none';
+    return;
+  }
+  empty.style.display = 'none';
+  badge.style.display = 'inline-block';
+  badge.textContent = data.length;
+
+  data.forEach(q => {
+    const items = (q.inventory_json || []).filter(i => i.qty > 0);
+    const itemsHtml = items.length ? items.map(i => `${i.qty}x (${i.cubic_ft} cu ft ea)`).join(', ') : '—';
+    const card = document.createElement('div');
+    card.className = 'card approval-card';
+    card.innerHTML = `
+      <div class="approval-info">
+        <b>${q.customer_name || 'Unknown'}</b> — ${q.customer_email || ''}
+        <div class="approval-sub">${q.pickup_address || '—'} → ${q.dest_address || '—'}</div>
+        <div class="approval-price">$${q.quote_low} - $${q.quote_high}</div>
+        <div class="approval-sub">${Math.round(q.distance_miles||0)} mi · ${q.total_cubic_ft||0} cu ft</div>
+        <div class="approval-items">${itemsHtml}</div>
+        ${q.notes ? `<div class="approval-items" style="margin-top:4px">Notes: ${q.notes}</div>` : ''}
+      </div>
+      <div class="approval-actions">
+        <button class="btn-approve" onclick="decide('${q.id}','approve',this)">✓ Approve</button>
+        <button class="btn-reject" onclick="decide('${q.id}','reject',this)">✕ Reject</button>
+      </div>`;
+    list.appendChild(card);
+  });
+}
+async function decide(id, action, btn) {
+  btn.disabled = true;
+  btn.textContent = '…';
+  try {
+    await fetch(`${N8N_API_URL}/simple-approve`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ approval_id: id, action })
+    });
+  } catch (e) {}
+  loadApprovals();
+}
+
+checkSession();
+</script>
+</body>
+</html>
